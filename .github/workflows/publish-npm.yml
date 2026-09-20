@@ -1,0 +1,61 @@
+name: Publish npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish (for example v0.3.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      PUBLISH_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+      BOOTSTRAP_NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.PUBLISH_TAG }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org/
+          package-manager-cache: false
+
+      - name: Verify release tag and package version
+        shell: bash
+        run: |
+          node --input-type=module <<'EOF'
+          import fs from 'node:fs';
+
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const expectedTag = `v${pkg.version}`;
+          const actualTag = process.env.PUBLISH_TAG;
+          if (actualTag !== expectedTag) {
+            console.error(`Refusing to publish: tag ${actualTag} does not match package version ${pkg.version}.`);
+            process.exit(1);
+          }
+          EOF
+
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - run: npm pack --dry-run
+
+      - name: Publish first version with bootstrap token
+        if: env.BOOTSTRAP_NPM_TOKEN != ''
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ env.BOOTSTRAP_NPM_TOKEN }}
+
+      - name: Publish with npm Trusted Publishing
+        if: env.BOOTSTRAP_NPM_TOKEN == ''
+        run: npm publish --access public --provenance

@@ -8,7 +8,8 @@
 使用 Node.js >=22。OpenCLI 插件可以复用**运行该插件的 Node.js 环境**；
 这不表示任意封装版客户端都向插件提供兼容的 Node API，请核对宿主版本。
 
-当前通过公开 GitHub Release 提供可校验的 `npm pack` 产物；尚未发布到 npm registry。
+npm registry 是首选分发目标，公开 GitHub Release 是可校验的兜底。npm 首次发布完成前，
+请使用 GitHub Release 产物。
 
 ## 用 Codex 一句话完成
 
@@ -28,7 +29,19 @@
 
 ## 1. 安装
 
-当前推荐安装公开 GitHub Release：
+npm registry 发布完成后，推荐固定版本安装：
+
+```sh
+npm install --save-exact @zevaier/config-guides@0.3.1
+```
+
+让智能体一次性启动配置引导时，也可直接用 `npx`，无需先全局安装：
+
+```sh
+npx --yes --package=@zevaier/config-guides@0.3.1 config-guide --agent --spec ./guide.json --timeout 30m
+```
+
+npm 首次发布完成前，或需要校验 GitHub Release 产物时：
 
 ```sh
 npm install --save-exact https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.1/zevaier-config-guides-0.3.1.tgz
@@ -46,7 +59,7 @@ npm install ./zevaier-config-guides-0.3.1.tgz
 {
   "type": "module",
   "dependencies": {
-    "@zevaier/config-guides": "https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.1/zevaier-config-guides-0.3.1.tgz"
+    "@zevaier/config-guides": "0.3.1"
   }
 }
 ```
@@ -234,7 +247,7 @@ PowerShell 的固定命令，设置并读取验证 protected DACL，只授予当
 仅支持本地 NTFS/ReFS；不可用就失败，不降级为公开文件。不调用下载的 .ps1，
 不使用 ExecutionPolicy Bypass，也不修改系统策略；组织的应用执行限制仍可能阻止这些命令。
 
-当前没有 Windows/macOS 实机测试结果。仓库附跨平台 CI，工作流尚未在远端运行。
+仓库附 Windows、macOS、Linux 跨平台 CI；实际运行状态以 GitHub Actions 为准。
 私有文件权限不是加密，也不隔离同用户程序、管理员或系统进程。
 密码框只遮挡显示；写入 JSON 需要显式 `allowPlaintextSecrets:true`。
 
@@ -252,7 +265,8 @@ npm pack
 `https://github.com/ZevaierZhan/config-guides.git`。
 包使用 MIT License；发布前确认这符合你的授权选择。
 
-npm / GitHub Packages 的完整命令和认证差异在 `docs/PUBLISHING.md`。
+npm / GitHub Packages 的完整命令和认证差异在 `docs/PUBLISHING.md`。npm 发布工作流只接受
+与 `package.json` 版本一致的 `vX.Y.Z` tag；GitHub Release 发布时自动执行，也可手动选择已有 tag 执行。
 
 ## 10. 目录
 
@@ -266,7 +280,7 @@ tests/                Node 原生测试
 docs/                 协议、发布、安全和验证说明
 skills/               可独立安装的 Codex Skill 及场景参考
 SKILLS.md             仓库内 Skill 路由入口
-.github/workflows/    跨平台 CI；手动 GitHub Packages 发布
+.github/workflows/    跨平台 CI；npm Release 自动发布；手动 GitHub Packages 发布
 ```
 
 ## 核对参考（2026-09-20）
@@ -274,5 +288,6 @@ SKILLS.md             仓库内 Skill 路由入口
 - OpenCLI 插件 API 与依赖安装：https://github.com/jackwener/OpenCLI/blob/main/docs/guide/plugins.md
 - OpenCLI 注册定义：https://github.com/jackwener/OpenCLI/blob/main/src/registry.ts
 - npm scoped 发布：https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/
+- npm Trusted Publishing：https://docs.npmjs.com/trusted-publishers/
 - GitHub npm registry：https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry
 - Node 文件权限：https://nodejs.org/api/fs.html#fspromiseschmodpath-mode
