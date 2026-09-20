@@ -1,12 +1,46 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import sanitizeHtml from 'sanitize-html';
 import { ConfigGuideError, expect } from './errors.js';
 import { cloneJSON, isObject, keys, object, own, parseJSON, readLimited, text } from './json.js';
 import { overlaps, pointer, safeKey } from './pointers.js';
 
-export const version = '0.2.0';
-export const capabilities = Object.freeze(['file.json', 'ui.secret']);
+export const version = '0.3.0';
+export const capabilities = Object.freeze(['file.json', 'ui.secret', 'ui.variant', 'ui.sanitized-html']);
 const fieldKeys = ['type', 'title', 'description', 'default', 'enum', 'minLength', 'maxLength', 'minimum', 'maximum'];
+const controlHelpKeys = ['format', 'content'];
+const allowedRichTags = ['p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'a', 'span'];
+
+function normalizeHelp(help, label) {
+  if (help === undefined) return;
+  keys(help, controlHelpKeys, `${label}.help`);
+  expect(help.format === 'html', `${label}.help.format 仅支持 html`);
+  expect(typeof help.content === 'string' && help.content.length > 0 && help.content.length <= 20_000,
+    `${label}.help.content 需要是 1 到 20000 字符的文本`);
+  help.content = sanitizeHtml(help.content, {
+    allowedTags: allowedRichTags,
+    allowedAttributes: { a: ['href', 'title', 'target', 'rel'] },
+    allowedSchemes: ['http', 'https'],
+    allowProtocolRelative: false,
+    transformTags: {
+      a: (_tagName, attributes) => {
+        let valid = false;
+        try { const url = new URL(attributes.href); valid = ['http:', 'https:'].includes(url.protocol); } catch { /* Invalid or relative URL. */ }
+        if (!valid) return { tagName: 'span', attribs: {} };
+        return { tagName: 'a', attribs: {
+          href: attributes.href,
+          ...(attributes.title ? { title: attributes.title.slice(0, 500) } : {}),
+          target: '_blank', rel: 'noopener noreferrer',
+        } };
+      },
+    },
+  });
+}
+
+function controlReference(control) {
+  const escape = value => value.replaceAll('~', '~0').replaceAll('/', '~1');
+  return control.kind === 'field' ? `/values/${escape(pointer(control.path)[0])}` : `/secrets/${escape(control.key)}`;
+}
 export function valueError(prop, value) {
   if (prop.type === 'string' && typeof value !== 'string') return '必须是文本';
   if (prop.type === 'boolean' && typeof value !== 'boolean') return '必须是布尔值';
@@ -73,9 +107,9 @@ export function defineGuide(input) {
   }
   expect(Array.isArray(spec.form.ui), 'form.ui 必须是数组');
   const fields = new Set(), secrets = new Set();
-  for (const control of spec.form.ui) {
+  const validateControl = (control, label, branch = false) => {
     if (control?.kind === 'field') {
-      keys(control, ['kind', 'path', 'widget'], 'ui.field');
+      keys(control, ['kind', 'path', 'widget', 'help'], label);
       const parts = pointer(control.path);
       expect(parts.length === 1 && own(schema.properties, parts[0]) && !fields.has(parts[0]), 'UI 字段必须是单层字段且不重复');
       const prop = schema.properties[parts[0]];
@@ -86,16 +120,51 @@ export function defineGuide(input) {
         case 'select': expect(Array.isArray(prop.enum) && prop.enum.length > 0, 'select 控件需要 enum'); break;
         default: expect(false, '未支持的控件');
       }
+      normalizeHelp(control.help, label);
       fields.add(parts[0]);
     } else if (control?.kind === 'secret') {
-      keys(control, ['kind', 'key'], 'ui.secret');
+      keys(control, ['kind', 'key', 'help'], label);
       expect(own(spec.form.secrets, control.key) && !secrets.has(control.key), 'secret 控件引用无效或重复');
+      normalizeHelp(control.help, label);
       secrets.add(control.key);
-    } else expect(false, '未支持的 UI kind');
+    } else {
+      expect(!branch && control?.kind === 'variant', '未支持的 UI kind');
+      keys(control, ['kind', 'path', 'widget', 'cases', 'inactive', 'help'], label);
+      expect(control.widget === 'select' && control.inactive === 'delete', 'variant 需要 select / inactive: delete');
+      const parts = pointer(control.path);
+      expect(parts.length === 1 && own(schema.properties, parts[0]) && !fields.has(parts[0]), 'variant.path 必须引用未使用的单层字段');
+      const prop = schema.properties[parts[0]];
+      expect(Array.isArray(prop.enum) && prop.enum.length > 0, 'variant 判别字段需要 enum');
+      expect(schema.required.includes(parts[0]), 'variant 判别字段必须在 schema.required 中');
+      normalizeHelp(control.help, label);
+      fields.add(parts[0]);
+      expect(Array.isArray(control.cases) && control.cases.length === prop.enum.length, 'variant.cases 必须完整覆盖判别字段 enum');
+      const caseValues = new Set();
+      for (const [index, branchCase] of control.cases.entries()) {
+        const caseLabel = `${label}.cases[${index}]`;
+        keys(branchCase, ['value', 'label', 'controls', 'required'], caseLabel);
+        expect(prop.enum.some(value => value === branchCase.value) && !caseValues.has(branchCase.value), `${caseLabel}.value 无效或重复`);
+        caseValues.add(branchCase.value); text(branchCase.label, `${caseLabel}.label`);
+        expect(Array.isArray(branchCase.controls) && branchCase.controls.length > 0, `${caseLabel}.controls 需要非空数组`);
+        for (const [childIndex, child] of branchCase.controls.entries()) validateControl(child, `${caseLabel}.controls[${childIndex}]`, true);
+        branchCase.required ??= [];
+        expect(Array.isArray(branchCase.required) && new Set(branchCase.required).size === branchCase.required.length, `${caseLabel}.required 必须是不重复数组`);
+        const refs = new Set(branchCase.controls.map(controlReference));
+        for (const ref of branchCase.required) expect(typeof ref === 'string' && refs.has(ref), `${caseLabel}.required 引用了分支外字段`);
+        for (const child of branchCase.controls) {
+          const ref = controlReference(child);
+          if (child.kind === 'field') expect(!schema.required.includes(pointer(child.path)[0]), `${ref} 应通过 variant case 声明 required`);
+          else expect(!spec.form.secrets[child.key].required, `${ref} 应通过 variant case 声明 required`);
+        }
+      }
+    }
+  };
+  for (const [index, control] of spec.form.ui.entries()) {
+    validateControl(control, `form.ui[${index}]`);
   }
   expect(fields.size === Object.keys(schema.properties).length && secrets.size === Object.keys(spec.form.secrets).length, '每个字段需要恰好一个 UI 控件');
   object(spec.targets, 'targets');
-  expect(Object.keys(spec.targets).length === 1, '0.2.0 仅支持一个保存目标');
+  expect(Object.keys(spec.targets).length === 1, '0.3.0 仅支持一个保存目标');
   const [targetId, target] = Object.entries(spec.targets)[0]; safeKey(targetId);
   keys(target, ['kind', 'path', 'format', 'writeMode', 'access', 'allowPlaintextSecrets'], 'target');
   expect(target.kind === 'file' && target.format === 'json' && target.writeMode === 'update-owned' && target.access === 'user-only', '仅支持 file / json / update-owned / user-only');
@@ -146,21 +215,40 @@ export async function loadSpec(options) {
   return { spec, context, specFile };
 }
 
+function activeForm(spec, values) {
+  const fields = new Set(), secrets = new Set(), required = new Set(), fieldControls = [];
+  const add = control => {
+    if (control.kind === 'field') { const key = pointer(control.path)[0]; fields.add(key); fieldControls.push(control); }
+    else secrets.add(control.key);
+  };
+  for (const control of spec.form.ui) {
+    if (control.kind !== 'variant') { add(control); continue; }
+    const key = pointer(control.path)[0]; fields.add(key); fieldControls.push({ kind: 'field', path: control.path, widget: control.widget });
+    const branch = control.cases.find(item => item.value === values[key]);
+    if (!branch) continue;
+    for (const child of branch.controls) add(child);
+    for (const ref of branch.required) required.add(ref);
+  }
+  return { fields, secrets, required, fieldControls };
+}
+
 /** Validates a complete form submission. Optional ordinary fields omitted here are deleted. */
 export function validateSubmission(spec, input, savedSecrets) {
   const request = cloneJSON(input, 'INVALID_REQUEST');
   keys(request, ['values', 'secretUpdates'], '提交', 'INVALID_REQUEST');
   object(request.values, 'values', 'INVALID_REQUEST');
   const fields = Object.create(null), props = spec.form.schema.properties;
+  const active = activeForm(spec, request.values);
   for (const [key, value] of Object.entries(request.values)) {
     expect(own(props, key), '提交包含未知字段', 'INVALID_REQUEST');
+    expect(active.fields.has(key), `提交包含非活动字段: ${key}`, 'INVALID_REQUEST');
     const error = valueError(props[key], value); if (error) fields[key] = error;
   }
   for (const key of spec.form.schema.required) {
     if (!own(request.values, key) || request.values[key] === '') fields[key] = '此项必填';
   }
-  for (const control of spec.form.ui) {
-    if (control.kind !== 'field' || !['url', 'email'].includes(control.widget)) continue;
+  for (const control of active.fieldControls) {
+    if (!['url', 'email'].includes(control.widget)) continue;
     const key = pointer(control.path)[0], value = request.values[key];
     if (value === undefined || value === '') continue;
     if (typeof value !== 'string') { fields[key] = '必须是文本'; continue; }
@@ -174,6 +262,7 @@ export function validateSubmission(spec, input, savedSecrets) {
   const secrets = Object.assign(Object.create(null), savedSecrets);
   for (const [key, change] of Object.entries(secretUpdates)) {
     expect(own(spec.form.secrets, key), '提交包含未知敏感字段', 'INVALID_REQUEST');
+    expect(active.secrets.has(key), `提交包含非活动敏感字段: ${key}`, 'INVALID_REQUEST');
     keys(change, ['operation', 'value'], 'secretUpdate', 'INVALID_REQUEST');
     switch (change.operation) {
       case 'keep': case 'delete':
@@ -185,7 +274,14 @@ export function validateSubmission(spec, input, savedSecrets) {
     }
   }
   for (const [key, prop] of Object.entries(spec.form.secrets)) {
-    if (prop.required && !secrets[key]) fields[`secret:${key}`] = '此项必填';
+    if (!active.secrets.has(key)) delete secrets[key];
+    else if (prop.required && !secrets[key]) fields[`secret:${key}`] = '此项必填';
+  }
+  for (const ref of active.required) {
+    const [kind, key] = pointer(ref);
+    if (kind === 'values') {
+      if (!own(request.values, key) || request.values[key] === '') fields[key] = '此项必填';
+    } else if (!secrets[key]) fields[`secret:${key}`] = '此项必填';
   }
   if (Object.keys(fields).length) throw new ConfigGuideError('VALIDATION_FAILED', '请检查表单内容', { fields });
   return { values: request.values, secrets };

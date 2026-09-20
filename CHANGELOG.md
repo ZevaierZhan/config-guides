@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Add discriminated `ui.variant` branches with dynamic required fields and server-enforced deletion of inactive values and secrets.
+- Add `ui.sanitized-html` help content with a strict element/attribute allowlist and HTTP(S)-only links.
+- Render variant labels in select controls and keep inactive branch inputs out of browser submissions.
+
 ## 0.2.0
 
 - Add host-provided real-connection verification through `verify({ config, signal })`.

@@ -41,16 +41,77 @@ function withSecret(spec, required = false) {
   spec.targets.config.allowPlaintextSecrets = true;
   spec.bindings.push({ from: '/secrets/token', target: 'config', to: '/auth/token' });
 }
+function withAuthVariant(spec) {
+  spec.requires = ['file.json', 'ui.secret', 'ui.variant', 'ui.sanitized-html'];
+  spec.form.schema.properties = {
+    authMode: { type: 'string', title: '认证方式', enum: ['basic', 'pat'], default: 'basic' },
+    username: { type: 'string', title: '用户名' },
+  };
+  spec.form.schema.required = ['authMode'];
+  spec.form.secrets = { password: { label: '密码' }, pat: { label: 'PAT' } };
+  spec.form.ui = [{
+    kind: 'variant', path: '/authMode', widget: 'select', inactive: 'delete',
+    help: { format: 'html', content: '<p>选择 <strong>认证方式</strong>。<a href="https://docs.example/auth" onclick="alert(1)">查看说明</a><script>alert(2)</script><a href="javascript:alert(3)">坏链接</a></p>' },
+    cases: [
+      { value: 'basic', label: 'Basic', controls: [{ kind: 'field', path: '/username', widget: 'text' }, { kind: 'secret', key: 'password' }], required: ['/values/username', '/secrets/password'] },
+      { value: 'pat', label: 'PAT', controls: [{ kind: 'secret', key: 'pat' }], required: ['/secrets/pat'] },
+    ],
+  }];
+  spec.targets.config.allowPlaintextSecrets = true;
+  spec.bindings = [
+    { from: '/values/authMode', target: 'config', to: '/auth/mode' },
+    { from: '/values/username', target: 'config', to: '/auth/username' },
+    { from: '/secrets/password', target: 'config', to: '/auth/password' },
+    { from: '/secrets/pat', target: 'config', to: '/auth/pat' },
+  ];
+}
 
 test('package exports and no host signal side effects', async () => {
   const before = process.listenerCount('SIGINT');
   const lib = await import('../src/index.js');
-  assert.equal(lib.version, '0.2.0'); assert.equal(version, '0.2.0');
+  assert.equal(lib.version, '0.3.0'); assert.equal(version, '0.3.0');
   assert.equal(process.listenerCount('SIGINT'), before);
 });
 test('original hello spec accepted without mutation', () => {
   const before = JSON.stringify(hello); const copy = defineGuide(hello);
   assert.deepEqual(copy.form.secrets, {}); assert.equal(JSON.stringify(hello), before);
+});
+test('variant controls and sanitized rich help are normalized as one reusable capability', () => {
+  const spec = structuredClone(hello); withAuthVariant(spec); const defined = defineGuide(spec);
+  const content = defined.form.ui[0].help.content;
+  assert.match(content, /<strong>认证方式<\/strong>/);
+  assert.match(content, /href="https:\/\/docs\.example\/auth"/);
+  assert.match(content, /target="_blank"/); assert.match(content, /rel="noopener noreferrer"/);
+  assert.equal(/onclick|<script|javascript:/i.test(content), false);
+});
+test('variant schema rejects incomplete, nested, or globally-required branches', () => {
+  for (const edit of [
+    s => s.form.ui[0].cases.pop(),
+    s => s.form.ui[0].cases[0].required.push('/secrets/pat'),
+    s => s.form.schema.required.push('username'),
+    s => s.form.ui[0].cases[0].controls.push({ kind: 'variant' }),
+  ]) {
+    const spec = structuredClone(hello); withAuthVariant(spec); edit(spec); assert.throws(() => defineGuide(spec), { code: 'INVALID_SPEC' });
+  }
+});
+test('variant submission validates only the active branch and prunes inactive credentials', () => {
+  const spec = structuredClone(hello); withAuthVariant(spec); const defined = defineGuide(spec);
+  const basic = validateSubmission(defined, { values: { authMode: 'basic', username: 'alice' }, secretUpdates: { password: { operation: 'keep' } } }, { password: 'OLD_PASSWORD', pat: 'OLD_PAT' });
+  assert.deepEqual({ ...basic.secrets }, { password: 'OLD_PASSWORD' });
+  assert.throws(() => validateSubmission(defined, { values: { authMode: 'basic', username: 'alice' }, secretUpdates: { pat: { operation: 'replace', value: 'INACTIVE' } } }, {}), { code: 'INVALID_REQUEST' });
+  try { validateSubmission(defined, { values: { authMode: 'basic' }, secretUpdates: {} }, {}); assert.fail('expected validation failure'); }
+  catch (error) { assert.equal(error.code, 'VALIDATION_FAILED'); assert.ok(error.fields.username); assert.ok(error.fields['secret:password']); }
+});
+test('variant save verifies and persists only the selected authentication branch', async t => {
+  const f = await fixture(t, withAuthVariant);
+  await put(f.target, { auth: { mode: 'basic', username: 'old', password: 'OLD_PASSWORD', pat: 'OLD_PAT' }, untouched: true });
+  const session = await start(t, { ...f.options, verify: ({ config }) => {
+    assert.deepEqual(config, { auth: { mode: 'pat', pat: 'OLD_PAT' }, untouched: true });
+    return { ok: true };
+  } });
+  const response = await api(session, '/api/save', { values: { authMode: 'pat' }, secretUpdates: { pat: { operation: 'keep' } } });
+  assert.equal(response.status, 200); await session.done;
+  assert.deepEqual(await readConfig(f.options), { auth: { mode: 'pat', pat: 'OLD_PAT' }, untouched: true });
 });
 test('strict schema, unsupported protocol and fields rejected', () => {
   for (const edit of [s => s.protocolVersion = '2.0', s => s.actions = {}, s => s.form.schema.properties.name.format = 'email',
@@ -288,7 +349,12 @@ test('integer, boolean and enum fields preserve types; non-http URL rejected', (
   const spec = defineGuide(hello);
   spec.form.schema.properties = { count: { type: 'integer', minimum: 0 }, enabled: { type: 'boolean' }, url: { type: 'string' }, color: { type: 'string', enum: ['a', 'b'] } };
   spec.form.schema.required = ['count', 'enabled'];
-  spec.form.ui = [{ kind: 'field', path: '/url', widget: 'url' }];
+  spec.form.ui = [
+    { kind: 'field', path: '/count', widget: 'number' },
+    { kind: 'field', path: '/enabled', widget: 'checkbox' },
+    { kind: 'field', path: '/url', widget: 'url' },
+    { kind: 'field', path: '/color', widget: 'select' },
+  ];
   assert.deepEqual({ ...validateSubmission(spec, { values: { count: 0, enabled: false, url: 'https://example.com', color: 'a' } }, {}).values }, { count: 0, enabled: false, url: 'https://example.com', color: 'a' });
   assert.throws(() => validateSubmission(spec, { values: { count: 1.5, enabled: 'true', url: 'javascript:alert(1)' } }, {}), { code: 'VALIDATION_FAILED' });
 });

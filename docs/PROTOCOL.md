@@ -1,6 +1,6 @@
-# 配置引导协议 1.0：JS 0.2.0 支持的子集
+# 配置引导协议 1.0：JS 0.3.0 支持的子集
 
-包版本 0.2.0 与描述文件 protocolVersion 1.0 是不同的版本维度。
+包版本 0.3.0 与描述文件 protocolVersion 1.0 是不同的版本维度。
 `defineGuide` 是严格校验器，但不是通用 JSON Schema 引擎。
 
 ## 描述结构
@@ -13,6 +13,7 @@ minLength / maxLength / minimum / maximum。整数必须在 JS 安全范围内�
 
 `form.ui`：字段需要恰好一个控件。普通字段是 kind:field + path + widget；
 secret 是 kind:secret + key。仅支持 text、textarea、url、email、number、checkbox、select。
+`kind:variant` 使用一个必填 enum 字段作为 discriminator；cases 必须完整覆盖 enum，每个分支声明自己的 controls 和动态 required。`inactive` 固定为 `delete`：非活动普通字段不接受提交，非活动 secret 在候选配置和保存结果中删除。第一版不支持嵌套 variant。
 URL 校验为 HTTP(S)，邮箱为基础格式检查，不做可投递验证。文本长度以 Unicode code point 计数。
 布尔 false 和数值 0 是合法值，不按“空”处理。
 普通字段的 `secret:` 前缀保留给字段错误标识，不允许作为字段名。
@@ -22,7 +23,9 @@ URL 校验为 HTTP(S)，邮箱为基础格式检查，不做可投递验证。�
 必须 `allowPlaintextSecrets:true`。描述 JSON 没有任意命令、连接验证、加密或钥匙串语义；连接验证只能由可信宿主通过 JS `verify` Adapter 提供。
 `bindings`：每个字段有且仅有一个映射，目标之间不能相等或存在父子关系。
 `submit`：label + apply.kind:write-targets。
-`requires`：可声明 file.json、ui.secret；其他能力直接拒绝。
+`requires`：可声明 file.json、ui.secret、ui.variant、ui.sanitized-html；其他能力直接拒绝。
+
+field、secret 和 variant 控件可提供 `help:{format:"html",content:"..."}`。内容在服务端清洗，仅保留 p/br/strong/em/code/pre/ul/ol/li/a/span；只保留安全链接属性和绝对 HTTP(S) URL，链接统一在新窗口打开。script、事件属性、表单、图片、iframe、SVG、样式及其他标签或属性均被删除。
 
 JSON Pointer 使用 ~0/~1 转义。只支持对象键，不支持数组下标。
 拒绝空键及 __proto__ / constructor / prototype 等保留键，防止对象原型污染。
@@ -47,7 +50,7 @@ Windows 设备保留名或尾随点/空格。基准目录的系统别名可以�
 先读取已有文件，已有字段覆盖默认值。只把声明的普通字段和 secretStates 返回网页。
 保存时重新读取文件，只替换绑定负责的字段，其他字段保留其数据值。
 注释、缩进、键顺序不作无损保证。JSON 中的未知整数超出安全范围时拒绝处理，避免静默取整。
-用户提交的是完整普通表单；未提交的**可选普通字段会删除对应受管字段**。
+用户提交的是当前活动分支的完整普通表单；未提交的**可选普通字段会删除对应受管字段**。
 未知字段错误，不会写进文件。
 
 秘密：

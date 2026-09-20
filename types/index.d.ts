@@ -4,14 +4,20 @@ export interface FieldSchema {
   title?: string; description?: string; default?: Scalar; enum?: Scalar[];
   minLength?: number; maxLength?: number; minimum?: number; maximum?: number;
 }
+export interface RichHelp { format: 'html'; content: string }
+export type SimpleControl =
+  | { kind: 'field'; path: string; widget: 'text' | 'textarea' | 'url' | 'email' | 'number' | 'checkbox' | 'select'; help?: RichHelp }
+  | { kind: 'secret'; key: string; help?: RichHelp };
 export type Control =
-  | { kind: 'field'; path: string; widget: 'text' | 'textarea' | 'url' | 'email' | 'number' | 'checkbox' | 'select' }
-  | { kind: 'secret'; key: string };
+  | SimpleControl
+  | { kind: 'variant'; path: string; widget: 'select'; inactive: 'delete'; help?: RichHelp; cases: {
+      value: Scalar; label: string; controls: SimpleControl[]; required?: string[];
+    }[] };
 /** Implemented protocol subset, not the full JSON Schema specification. */
 export interface GuideSpec {
   protocolVersion: '1.0';
   plugin: { id: string; title: string };
-  requires?: ('file.json' | 'ui.secret')[];
+  requires?: ('file.json' | 'ui.secret' | 'ui.variant' | 'ui.sanitized-html')[];
   form: {
     schema: { $schema?: string; type: 'object'; properties: Record<string, FieldSchema>; required?: string[]; additionalProperties: false };
     secrets?: Record<string, { label: string; description?: string; required?: boolean }>;
@@ -61,7 +67,7 @@ export class ConfigGuideError extends Error {
   readonly fields?: Record<string, string>;
   constructor(code: string, message: string, options?: { cause?: unknown; fields?: Record<string, string> });
 }
-export const version: '0.2.0';
+export const version: '0.3.0';
 export const capabilities: readonly string[];
 /** Validates immediately, returns an independent normalized copy. */
 export function defineGuide(spec: GuideSpec): GuideSpec;

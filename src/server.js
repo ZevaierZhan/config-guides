@@ -39,7 +39,7 @@ async function readBody(req) {
 export async function startSession({ spec, target, snapshot, timeoutMs, closeAfterMs, signal, verify, verificationTimeoutMs }) {
   const assets = new Map();
   for (const [route, file, type] of [
-    ['/', 'index.html', 'text/html'], ['/app.js', 'app.js', 'text/javascript'], ['/style.css', 'style.css', 'text/css'],
+    ['/', 'index.html', 'text/html'], ['/app.js', 'app.js', 'text/javascript'], ['/style.css', 'style.css', 'text/css'], ['/rich.css', 'rich.css', 'text/css'],
   ]) assets.set(route, { bytes: await readFile(new URL(`../web/${file}`, import.meta.url)), type: `${type}; charset=utf-8` });
   const token = randomBytes(32).toString('hex');
   let host, origin, finished = false, finishingResult, timer, closePromise;

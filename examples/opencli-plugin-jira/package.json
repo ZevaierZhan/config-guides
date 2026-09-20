@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
-  "dependencies": { "@zevaier/config-guides": "0.1.0" },
+  "dependencies": { "@zevaier/config-guides": "0.3.0" },
   "peerDependencies": { "@jackwener/opencli": ">=1.0.0" }
 }

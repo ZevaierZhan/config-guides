@@ -1,4 +1,4 @@
-# @zevaier/config-guides · 0.2.0
+# @zevaier/config-guides · 0.3.0
 
 **配置引导工具的 JavaScript 版。** 在 OpenCLI 插件的 `setup` 中直接 import，
 启动回环地址随机端口网页，填写配置，保存后返回结构化结果。
@@ -15,13 +15,13 @@
 发布到 npm 后：
 
 ```sh
-npm install --save-exact @zevaier/config-guides@0.2.0
+npm install --save-exact @zevaier/config-guides@0.3.0
 ```
 
 发布前可安装交付的本地 tarball：
 
 ```sh
-npm install ./zevaier-config-guides-0.2.0.tgz
+npm install ./zevaier-config-guides-0.3.0.tgz
 ```
 
 插件 `package.json` 中的依赖最终应为：
@@ -30,7 +30,7 @@ npm install ./zevaier-config-guides-0.2.0.tgz
 {
   "type": "module",
   "dependencies": {
-    "@zevaier/config-guides": "0.2.0"
+    "@zevaier/config-guides": "0.3.0"
   }
 }
 ```
@@ -91,17 +91,19 @@ npm run demo
 node bin/config-guide.js --spec examples/hello-world.json --no-open
 ```
 
-本仓库没有第三方依赖；运行源码和 Node 原生测试不需要联网安装包。
+运行源码前先执行 `npm install`；服务端使用 `sanitize-html` 清洗受限富文本。
 前端静态资源位于 `web/`，作为 npm 包文件直接分发。
 
 ## 4. OpenCLI Jira setup
 
 完整示例位于 `examples/opencli-plugin-jira/`，包含：
 
-- `package.json`：依赖 `"@zevaier/config-guides": "0.2.0"`。
+- `package.json`：依赖 `"@zevaier/config-guides": "0.3.0"`。
 - `jira-setup.ts`：注册 `opencli jira setup`。
 - `jira-guide.json`：文本、下拉框、密码及文件字段映射。
 - `jira-config-status.ts`：共用路径解析读取配置，但不返回 Token。
+
+互斥配置使用 `kind:"variant"`：判别字段选择一个 case，仅渲染并校验该分支；保存前服务端删除其他分支的普通字段和凭证。控件可通过 `help:{format:"html",content:"..."}` 显示受限富文本，HTML 会经过严格白名单清洗，链接只允许绝对 HTTP(S) 地址。
 
 核心调用：
 
