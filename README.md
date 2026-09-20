@@ -1,4 +1,4 @@
-# @zevaier/config-guides · 0.1.0
+# @zevaier/config-guides · 0.2.0
 
 **配置引导工具的 JavaScript 版。** 在 OpenCLI 插件的 `setup` 中直接 import，
 启动回环地址随机端口网页，填写配置，保存后返回结构化结果。
@@ -15,13 +15,13 @@
 发布到 npm 后：
 
 ```sh
-npm install --save-exact @zevaier/config-guides@0.1.0
+npm install --save-exact @zevaier/config-guides@0.2.0
 ```
 
 发布前可安装交付的本地 tarball：
 
 ```sh
-npm install ./zevaier-config-guides-0.1.0.tgz
+npm install ./zevaier-config-guides-0.2.0.tgz
 ```
 
 插件 `package.json` 中的依赖最终应为：
@@ -30,7 +30,7 @@ npm install ./zevaier-config-guides-0.1.0.tgz
 {
   "type": "module",
   "dependencies": {
-    "@zevaier/config-guides": "0.1.0"
+    "@zevaier/config-guides": "0.2.0"
   }
 }
 ```
@@ -98,7 +98,7 @@ node bin/config-guide.js --spec examples/hello-world.json --no-open
 
 完整示例位于 `examples/opencli-plugin-jira/`，包含：
 
-- `package.json`：依赖 `"@zevaier/config-guides": "0.1.0"`。
+- `package.json`：依赖 `"@zevaier/config-guides": "0.2.0"`。
 - `jira-setup.ts`：注册 `opencli jira setup`。
 - `jira-guide.json`：文本、下拉框、密码及文件字段映射。
 - `jira-config-status.ts`：共用路径解析读取配置，但不返回 Token。
@@ -148,6 +148,21 @@ cli({
 `runGuide` 还支持 `openBrowser`（默认 true）、`onReady({url,path})`、`onWarning(message)`。
 参数与类型见 `types/index.d.ts`。
 
+插件可提供真实连接验证 Adapter。向导用当前表单生成尚未落盘的完整候选配置；“测试连接”不会写文件，保存时会重新验证同一请求，只有成功后才原子写入：
+
+```js
+await runGuide({
+  specFile: new URL('./jira-guide.json', import.meta.url),
+  verification: { timeoutMs: 15_000 },
+  verify: async ({ config, signal }) => {
+    const identity = await connectToJira(config, { signal });
+    return { ok: true, message: `Jira connected as ${identity}` };
+  },
+});
+```
+
+连接协议、认证组合和响应解释属于插件；config-guides 只负责候选配置、超时、取消、UI 和“验证后保存”。回调不得把密码、Token、请求头或完整敏感响应放进错误及返回消息。
+
 ```js
 const session = await createGuide({ specFile: './hello-world.json' });
 // 把 session.url 显示在自己的本地 UI；不要发到模型上下文或遥测服务。
@@ -171,7 +186,7 @@ const result = await session.done;
   "pluginId": "demo/hello-world",
   "status": "completed",
   "persistence": "saved",
-  "verification": "not-requested",
+  "verification": "succeeded",
   "changedTargets": ["config"],
   "path": "/actual/home/.config/config-guide-demo/hello.json"
 }
@@ -181,7 +196,7 @@ const result = await session.done;
 发生文件写入后的清理问题时返回 warnings，不能把已保存文件误报成“完全没有修改”。
 启动和描述错误抛 `ConfigGuideError`；保存/校验错误显示在页面，允许修正后重试或取消。
 
-本版只保存配置，**不会测试 Jira 等外部服务连接**，因此 verification 始终为 not-requested。
+未提供 `verify` 时 verification 为 `not-requested`；提供后必须验证成功才能保存，结果为 `succeeded`。
 
 ## 7. 协议与实现范围
 

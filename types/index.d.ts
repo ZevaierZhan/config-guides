@@ -29,7 +29,13 @@ export interface GuideContext { pluginDir?: string | URL; workspaceDir?: string 
 export type SpecSource =
   | { spec: GuideSpec; specFile?: never; context?: GuideContext }
   | { specFile: string | URL; spec?: never; context?: GuideContext };
-export type CreateGuideOptions = SpecSource & { timeoutMs?: number; closeAfterMs?: number; signal?: AbortSignal };
+export interface VerificationContext { config: Record<string, unknown>; signal: AbortSignal }
+export interface VerificationResult { ok: boolean; message?: string }
+export type CreateGuideOptions = SpecSource & {
+  timeoutMs?: number; closeAfterMs?: number; signal?: AbortSignal;
+  verify?: (context: VerificationContext) => VerificationResult | Promise<VerificationResult>;
+  verification?: { timeoutMs?: number };
+};
 export type RunGuideOptions = CreateGuideOptions & {
   openBrowser?: boolean;
   /** Contains the secret-bearing session URL. Show only to the local user. */
@@ -39,7 +45,7 @@ export type RunGuideOptions = CreateGuideOptions & {
 export interface GuideResult {
   protocolVersion: '1.0'; pluginId: string;
   status: 'completed' | 'cancelled'; persistence: 'saved' | 'unchanged';
-  verification: 'not-requested'; changedTargets: string[]; path: string;
+  verification: 'not-requested' | 'succeeded'; verificationMessage?: string; changedTargets: string[]; path: string;
   reason?: string; warnings?: string[];
 }
 export interface GuideSession {
@@ -55,7 +61,7 @@ export class ConfigGuideError extends Error {
   readonly fields?: Record<string, string>;
   constructor(code: string, message: string, options?: { cause?: unknown; fields?: Record<string, string> });
 }
-export const version: '0.1.0';
+export const version: '0.2.0';
 export const capabilities: readonly string[];
 /** Validates immediately, returns an independent normalized copy. */
 export function defineGuide(spec: GuideSpec): GuideSpec;

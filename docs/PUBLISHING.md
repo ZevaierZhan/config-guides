@@ -1,4 +1,4 @@
-# 发布 @zevaier/config-guides@0.1.0
+# 发布 @zevaier/config-guides@0.2.0
 
 当前源码可以 npm pack，但尚未向任何远程 registry 发布。
 不包含真实 Token、账号密码或远程登录操作。拥有 @zevaier 命名空间权限是发布前提。
@@ -32,7 +32,7 @@ publish:npm 同时固定 registry 与 @zevaier:registry，避免用户已有的 
 完成后用户才能正常安装：
 
 ```sh
-npm install --save-exact @zevaier/config-guides@0.1.0
+npm install --save-exact @zevaier/config-guides@0.2.0
 ```
 
 同名同版本不能用来覆盖旧内容；后续变更应递增版本。
@@ -61,7 +61,7 @@ npm run publish:github
 `docs/npmrc.github.example` 提供环境变量占位版本，**不是实际凭据文件**。
 不要把 NODE_AUTH_TOKEN 的实际值提交到 Git。
 
-同一份 `"@zevaier/config-guides":"0.1.0"` 依赖可以来自两个 registry，
+同一份 `"@zevaier/config-guides":"0.2.0"` 依赖可以来自两个 registry，
 但客户端 scope 配置决定具体来源。建议公开用户默认从 npmjs.org 安装。
 
 ## GitHub Actions

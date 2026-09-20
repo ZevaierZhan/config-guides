@@ -45,7 +45,7 @@ function withSecret(spec, required = false) {
 test('package exports and no host signal side effects', async () => {
   const before = process.listenerCount('SIGINT');
   const lib = await import('../src/index.js');
-  assert.equal(lib.version, '0.1.0'); assert.equal(version, '0.1.0');
+  assert.equal(lib.version, '0.2.0'); assert.equal(version, '0.2.0');
   assert.equal(process.listenerCount('SIGINT'), before);
 });
 test('original hello spec accepted without mutation', () => {
@@ -117,6 +117,37 @@ test('existing values override defaults and unowned fields survive', async t => 
   const model = await (await api(session, '/api/session')).json(); assert.equal(model.values.name, 'Before');
   await api(session, '/api/save', input('After')); await session.done;
   assert.deepEqual(await readConfig(f.options), { profile: { name: 'After', extra: 9 }, message: 'Hello', untouched: true });
+});
+test('existing configuration is reported and secrets remain represented only as state', async t => {
+  const f = await fixture(t, withSecret); await put(f.target, { profile: { name: 'Existing' }, message: 'old', auth: { token: 'PRIVATE' } });
+  const session = await start(t, f.options); const text = await (await api(session, '/api/session')).text(); const model = JSON.parse(text);
+  assert.equal(model.configurationExists, true); assert.equal(model.values.name, 'Existing'); assert.equal(model.secretStates.token, true);
+  assert.equal(text.includes('PRIVATE'), false);
+});
+test('verifier receives exact candidate including kept secrets and save happens only after success', async t => {
+  const f = await fixture(t, withSecret); await put(f.target, { profile: { name: 'Old' }, auth: { token: 'PRIVATE' }, untouched: 7 });
+  const seen = [];
+  const session = await start(t, { ...f.options, verify: async ({ config, signal }) => {
+    assert.equal(signal.aborted, false); seen.push(config);
+    return { ok: true, message: 'Connected as test-user' };
+  } });
+  const payload = { ...input('New'), secretUpdates: { token: { operation: 'keep' } } };
+  const check = await api(session, '/api/verify', payload); assert.deepEqual(await check.json(), { ok: true, message: 'Connected as test-user' });
+  assert.deepEqual(await readConfig(f.options), { profile: { name: 'Old' }, auth: { token: 'PRIVATE' }, untouched: 7 });
+  const save = await api(session, '/api/save', payload); assert.equal(save.status, 200);
+  const result = await session.done; assert.equal(result.verification, 'succeeded'); assert.equal(result.verificationMessage, 'Connected as test-user');
+  assert.equal(seen.length, 2); assert.deepEqual(seen[0], { profile: { name: 'New' }, message: 'Hello', auth: { token: 'PRIVATE' }, untouched: 7 });
+  assert.equal((await readConfig(f.options)).profile.name, 'New');
+});
+test('failed and timed-out verification never writes configuration and leaves the session usable', async t => {
+  const f = await fixture(t);
+  const failed = await start(t, { ...f.options, verify: () => ({ ok: false, message: 'HTTP 401' }) });
+  let response = await api(failed, '/api/save', input()); assert.equal(response.status, 422); assert.equal((await response.json()).code, 'VERIFICATION_FAILED');
+  assert.equal(await readConfig(f.options), undefined); assert.equal((await api(failed, '/api/session')).status, 200);
+  await failed.close();
+  const timed = await start(t, { ...f.options, verify: async ({ signal }) => await new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })), verification: { timeoutMs: 100 } });
+  response = await api(timed, '/api/save', input()); assert.equal(response.status, 504); assert.equal((await response.json()).code, 'VERIFICATION_TIMEOUT');
+  assert.equal(await readConfig(f.options), undefined);
 });
 test('omitted optional ordinary fields delete only owned key', async t => {
   const f = await fixture(t, s => { s.form.schema.required = ['name']; });
@@ -281,6 +312,8 @@ test('public library rejects unknown options rather than silently dropping them'
   await assert.rejects(createGuide({ ...f.options, host: '0.0.0.0' }), { code: 'INVALID_OPTIONS' });
   await assert.rejects(runGuide({ ...f.options, openBrowser: 'false' }), { code: 'INVALID_OPTIONS' });
   await assert.rejects(createGuide({ ...f.options, closeAfterMs: -1 }), { code: 'INVALID_OPTIONS' });
+  await assert.rejects(createGuide({ ...f.options, verify: true }), { code: 'INVALID_OPTIONS' });
+  await assert.rejects(createGuide({ ...f.options, verification: { timeoutMs: 50 } }), { code: 'INVALID_OPTIONS' });
   await assert.rejects(createGuide({ ...f.options, specFile: 'hello-world.json' }), { code: 'INVALID_OPTIONS' });
 });
 test('invalid UTF-8 source is rejected rather than replacing bytes', async t => {

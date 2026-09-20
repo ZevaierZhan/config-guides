@@ -13,11 +13,20 @@ function optionsCheck(options, extra = []) {
 
 /** Only starts a loopback server. No printing, browser opening, signal handlers or process.exit(). */
 export async function createGuide(options) {
-  optionsCheck(options, ['timeoutMs', 'closeAfterMs', 'signal']);
+  optionsCheck(options, ['timeoutMs', 'closeAfterMs', 'signal', 'verify', 'verification']);
   const timeoutMs = options.timeoutMs ?? 15 * 60 * 1_000;
   const closeAfterMs = options.closeAfterMs ?? 10_000;
   expect(Number.isSafeInteger(timeoutMs) && timeoutMs >= 50 && timeoutMs <= 86_400_000, 'timeoutMs 需要在 50 到 86400000 之间', 'INVALID_OPTIONS');
   expect(Number.isSafeInteger(closeAfterMs) && closeAfterMs >= 0 && closeAfterMs <= 60_000, 'closeAfterMs 需要在 0 到 60000 之间', 'INVALID_OPTIONS');
+  if (options.verify !== undefined) expect(typeof options.verify === 'function', 'verify 必须是函数', 'INVALID_OPTIONS');
+  let verificationTimeoutMs = 15_000;
+  if (options.verification !== undefined) {
+    expect(options.verify, 'verification 需要同时提供 verify', 'INVALID_OPTIONS');
+    keys(options.verification, ['timeoutMs'], 'verification', 'INVALID_OPTIONS');
+    verificationTimeoutMs = options.verification.timeoutMs ?? verificationTimeoutMs;
+    expect(Number.isSafeInteger(verificationTimeoutMs) && verificationTimeoutMs >= 100 && verificationTimeoutMs <= 300_000,
+      'verification.timeoutMs 需要在 100 到 300000 之间', 'INVALID_OPTIONS');
+  }
   if (options.signal) {
     expect(typeof options.signal.addEventListener === 'function' && typeof options.signal.aborted === 'boolean', 'signal 必须是 AbortSignal', 'INVALID_OPTIONS');
     if (options.signal.aborted) throw new ConfigGuideError('ABORTED', '启动前已取消');
@@ -26,13 +35,14 @@ export async function createGuide(options) {
     const { spec, context, specFile } = await loadSpec(options);
     const target = await resolveTarget(spec, context, specFile);
     const snapshot = await loadSnapshot(spec, target);
-    return await startSession({ spec, target, snapshot, timeoutMs, closeAfterMs, signal: options.signal });
+    return await startSession({ spec, target, snapshot, timeoutMs, closeAfterMs, signal: options.signal,
+      verify: options.verify, verificationTimeoutMs });
   } catch (error) { throw ioError(error, '无法启动配置引导工具'); }
 }
 
 /** High-level SDK: open a guide and await save/cancel/timeout without terminating the host. */
 export async function runGuide(options) {
-  optionsCheck(options, ['timeoutMs', 'closeAfterMs', 'signal', 'openBrowser', 'onReady', 'onWarning']);
+  optionsCheck(options, ['timeoutMs', 'closeAfterMs', 'signal', 'verify', 'verification', 'openBrowser', 'onReady', 'onWarning']);
   if (options.openBrowser !== undefined) expect(typeof options.openBrowser === 'boolean', 'openBrowser 必须是布尔值', 'INVALID_OPTIONS');
   for (const key of ['onReady', 'onWarning']) if (options[key] !== undefined) expect(typeof options[key] === 'function', `${key} 必须是函数`, 'INVALID_OPTIONS');
   const { openBrowser = true, onReady, onWarning, ...base } = options;

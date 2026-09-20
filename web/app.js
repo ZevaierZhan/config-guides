@@ -35,14 +35,15 @@
     document.querySelectorAll('.field-error').forEach(e=>e.remove());
     document.querySelectorAll('.invalid').forEach(e=>e.classList.remove('invalid'));
   }
-  function setBusy(value) {
+  function setBusy(value, action='save') {
     busy=value;
-    for(const b of [$('save'),$('cancel')]) b.disabled=value;
+    for(const b of [$('save'),$('cancel'),$('verify')]) b.disabled=value;
     for(const f of fields.values()) {
       if(f.mode) {f.mode.disabled=value; f.input.disabled=value || f.mode.value!=='replace';}
       else f.input.disabled=value;
     }
-    $('save').textContent=value?'正在保存…':model.submitLabel;
+    $('save').textContent=value&&action==='save'?(model.verification.enabled?'正在验证并保存…':'正在保存…'):model.submitLabel;
+    $('verify').textContent=value&&action==='verify'?'正在测试…':'测试连接';
   }
   function renderControl(u, index) {
     const wrapper=element('div',{class:'field'}), id='field-'+index;
@@ -99,7 +100,9 @@
     const saved=result.persistence==='saved';
     $('result-icon').textContent=saved?'✓':'–';
     $('result-title').textContent=saved?'配置已保存':'已取消配置';
-    $('result-text').textContent=saved?'JSON 文件已写入。本次未执行外部服务连接验证。':'本次会话没有修改配置文件。';
+    $('result-text').textContent=saved
+      ? result.verification==='succeeded'?`连接验证成功，JSON 文件已写入。${result.verificationMessage?' '+result.verificationMessage:''}`:'JSON 文件已写入。本次未执行外部服务连接验证。'
+      :'本次会话没有修改配置文件。';
     $('result-path').textContent=result.path;
     if (result.warnings?.length) $('result-text').textContent += ' ' + result.warnings.join(' ');
     for(const f of fields.values())if(f.secret)f.input.value='';
@@ -117,6 +120,13 @@
     try{finish(await api('/api/save',payload));}catch(err){showError(err);setBusy(false);}
     finally{for(const u of Object.values(payload.secretUpdates))if('value'in u)u.value='';}
   });
+  $('verify').addEventListener('click',async()=>{
+    if(busy||!model)return;clearErrors();const payload=collect();setBusy(true,'verify');
+    const status=$('verification-status');status.classList.remove('hidden');status.textContent='正在使用当前表单内容连接真实服务…';
+    try{const result=await api('/api/verify',payload);status.textContent='✓ '+(result.message||'连接验证成功');}
+    catch(err){status.classList.add('hidden');showError(err);}
+    finally{setBusy(false);for(const u of Object.values(payload.secretUpdates))if('value'in u)u.value='';}
+  });
   $('cancel').addEventListener('click',async()=>{
     if(busy||!model)return;clearErrors();setBusy(true);
     try{finish(await api('/api/cancel',{}));}catch(err){showError(err);setBusy(false);}
@@ -128,9 +138,11 @@
       document.title=model.plugin.title+' · 配置引导工具';
       $('title').textContent=model.plugin.title;
       $('subtitle').textContent='填写下方配置，保存后供插件后续自动读取。';
+      if(model.configurationExists)$('subtitle').textContent='已读取当前设备上的已有配置；修改后将只更新本向导管理的字段。';
       $('target').textContent=model.targetPath;
       $('save').textContent=model.submitLabel;
       if(model.plaintextSecrets)$('secret-notice').classList.remove('hidden');
+      if(model.verification.enabled)$('verify').classList.remove('hidden');
       model.form.ui.forEach(renderControl);
     }catch(err){$('title').textContent='无法打开配置';showError(err);$('save').disabled=true;$('cancel').disabled=true;}
   })();

@@ -87,6 +87,25 @@ export async function loadSnapshot(spec, target) {
   return { values, savedSecrets, hash };
 }
 
+function applyBindings(spec, root, values, secrets) {
+  for (const binding of spec.bindings) {
+    const [kind, key] = pointer(binding.from);
+    const data = kind === 'values' ? values : secrets;
+    setAt(root, pointer(binding.to), data[key], !own(data, key));
+  }
+  const data = Buffer.from(`${JSON.stringify(root, null, 2)}\n`, 'utf8');
+  expect(data.length <= MAX_BYTES, '保存结果超过 2 MiB 限制', 'TOO_LARGE');
+  return { root, data };
+}
+
+/** Build the exact candidate object a verifier will inspect, without writing it. */
+export async function materializeCandidate(spec, target, originalHash, values, secrets) {
+  await checkPath(target.base, target.path);
+  const { root, hash } = await readTarget(target.path);
+  expect(hash === originalHash, '配置已被其他进程修改，请取消并重新打开向导', 'CONFIG_CONFLICT');
+  return applyBindings(spec, root, values, secrets).root;
+}
+
 /** Cooperative lock + revision check + same-directory temporary file + atomic rename.
  * Not a sandbox or a transaction against hostile processes running as this user.
  */
@@ -108,13 +127,7 @@ export async function saveTarget(spec, target, originalHash, values, secrets) {
     await lock.writeFile(String(process.pid)); await lock.close(); lock = undefined;
     const { root, hash } = await readTarget(target.path);
     expect(hash === originalHash, '配置已被其他进程修改，请取消并重新打开向导', 'CONFIG_CONFLICT');
-    for (const binding of spec.bindings) {
-      const [kind, key] = pointer(binding.from);
-      const data = kind === 'values' ? values : secrets;
-      setAt(root, pointer(binding.to), data[key], !own(data, key));
-    }
-    const data = Buffer.from(`${JSON.stringify(root, null, 2)}\n`, 'utf8');
-    expect(data.length <= MAX_BYTES, '保存结果超过 2 MiB 限制', 'TOO_LARGE');
+    const { data } = applyBindings(spec, root, values, secrets);
     tempPath = path.join(dir, `.config-guide-${randomBytes(16).toString('hex')}.tmp`);
     const flags = constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | (constants.O_NOFOLLOW || 0);
     temp = await open(tempPath, flags, 0o600);

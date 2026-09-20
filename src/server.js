@@ -2,9 +2,9 @@ import http from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { ConfigGuideError, expect } from './errors.js';
-import { MAX_BYTES, parseJSON } from './json.js';
+import { isObject, keys, MAX_BYTES, parseJSON } from './json.js';
 import { validateSubmission, version } from './spec.js';
-import { saveTarget } from './storage.js';
+import { materializeCandidate, saveTarget } from './storage.js';
 
 const csp = "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; object-src 'none'";
 function json(res, status, body) {
@@ -36,7 +36,7 @@ async function readBody(req) {
   return parseJSON(data, 'INVALID_REQUEST');
 }
 
-export async function startSession({ spec, target, snapshot, timeoutMs, closeAfterMs, signal }) {
+export async function startSession({ spec, target, snapshot, timeoutMs, closeAfterMs, signal, verify, verificationTimeoutMs }) {
   const assets = new Map();
   for (const [route, file, type] of [
     ['/', 'index.html', 'text/html'], ['/app.js', 'app.js', 'text/javascript'], ['/style.css', 'style.css', 'text/css'],
@@ -52,15 +52,17 @@ export async function startSession({ spec, target, snapshot, timeoutMs, closeAft
       if (res.destroyed || res.headersSent) { res.destroy(); return; }
       const known = error instanceof ConfigGuideError;
       const status = ({ VALIDATION_FAILED: 422, INVALID_REQUEST: 400, CONTENT_TYPE: 415, TOO_LARGE: 413, SESSION_FINISHED: 409,
-        CONFIG_CONFLICT: 409, CONFIG_LOCKED: 409, PATH_CONFLICT: 409, UNSAFE_PATH: 409, PERMISSION_FAILED: 500 })[error.code] || 500;
+        CONFIG_CONFLICT: 409, CONFIG_LOCKED: 409, PATH_CONFLICT: 409, UNSAFE_PATH: 409, PERMISSION_FAILED: 500,
+        VERIFICATION_FAILED: 422, VERIFICATION_TIMEOUT: 504 })[error.code] || 500;
       json(res, status, { error: known ? error.message : '操作失败，请检查配置位置及读写权限。', code: known ? error.code : 'IO_ERROR', ...(error.fields ? { fields: error.fields } : {}) });
     });
   });
   server.on('clientError', (_error, socket) => { if (socket.writable) socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n'); });
-  function makeResult(status, reason, warnings = []) {
+  function makeResult(status, reason, warnings = [], verificationMessage = '') {
     const saved = status === 'completed';
     return { protocolVersion: '1.0', pluginId: spec.plugin.id, status, persistence: saved ? 'saved' : 'unchanged',
-      verification: 'not-requested', changedTargets: saved ? [target.id] : [], path: target.path,
+      verification: saved && verify ? 'succeeded' : 'not-requested', changedTargets: saved ? [target.id] : [], path: target.path,
+      ...(verificationMessage ? { verificationMessage } : {}),
       ...(reason ? { reason } : {}), ...(warnings.length ? { warnings } : {}) };
   }
   function finish(result) {
@@ -83,6 +85,47 @@ export async function startSession({ spec, target, snapshot, timeoutMs, closeAft
     return done;
   }
   const abort = () => { void close('aborted'); };
+  async function runVerification(config) {
+    if (!verify) return { ok: true, message: '' };
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, verificationTimeoutMs);
+    const onAbort = () => controller.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      const aborted = new Promise((_resolve, reject) => controller.signal.addEventListener('abort', () => reject(
+        new ConfigGuideError(timedOut ? 'VERIFICATION_TIMEOUT' : 'VERIFICATION_FAILED',
+          timedOut ? `连接验证超过 ${verificationTimeoutMs}ms` : '连接验证已取消'),
+      ), { once: true }));
+      let result;
+      try { result = await Promise.race([Promise.resolve().then(() => verify({ config: structuredClone(config), signal: controller.signal })), aborted]); }
+      catch (error) {
+        if (error instanceof ConfigGuideError) throw error;
+        const message = error instanceof Error && error.message ? error.message : '插件未提供可显示的失败原因';
+        throw new ConfigGuideError('VERIFICATION_FAILED', `连接验证失败：${message.slice(0, 1000)}`, { cause: error });
+      }
+      expect(isObject(result), 'verify 必须返回对象', 'VERIFICATION_FAILED');
+      keys(result, ['ok', 'message'], 'verify result', 'VERIFICATION_FAILED');
+      expect(typeof result.ok === 'boolean', 'verify result.ok 必须是布尔值', 'VERIFICATION_FAILED');
+      if (result.message !== undefined) expect(typeof result.message === 'string' && result.message.length <= 1000,
+        'verify result.message 必须是不超过 1000 字符的文本', 'VERIFICATION_FAILED');
+      if (!result.ok) throw new ConfigGuideError('VERIFICATION_FAILED', result.message || '连接验证失败');
+      return { ok: true, message: result.message || '连接验证成功' };
+    } finally {
+      clearTimeout(timeout); signal?.removeEventListener('abort', onAbort); controller.abort();
+    }
+  }
+  async function validateAndVerify(body) {
+    const { values, secrets } = validateSubmission(spec, body, snapshot.savedSecrets);
+    try {
+      const candidate = await materializeCandidate(spec, target, snapshot.hash, values, secrets);
+      const verification = await runVerification(candidate);
+      return { values, secrets, verification };
+    } catch (error) {
+      for (const key of Object.keys(secrets)) delete secrets[key];
+      throw error;
+    }
+  }
   async function dispatch(req, res) {
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('X-Frame-Options', 'DENY');
@@ -105,20 +148,27 @@ export async function startSession({ spec, target, snapshot, timeoutMs, closeAft
         expect(!finished, '本次配置会话已结束', 'SESSION_FINISHED');
         json(res, 200, { version, plugin: spec.plugin, form: spec.form, values: snapshot.values,
           secretStates: Object.fromEntries(Object.keys(spec.form.secrets).map(key => [key, !!snapshot.savedSecrets[key]])),
-          targetPath: target.path, submitLabel: spec.submit.label, plaintextSecrets: Object.keys(spec.form.secrets).length > 0, closeAfterMs });
+          targetPath: target.path, submitLabel: spec.submit.label, plaintextSecrets: Object.keys(spec.form.secrets).length > 0,
+          configurationExists: snapshot.hash !== 'missing', verification: { enabled: Boolean(verify), required: Boolean(verify) }, closeAfterMs });
       });
       return;
     }
-    if ((route === '/api/save' || route === '/api/cancel') && req.method === 'POST') {
+    if ((route === '/api/save' || route === '/api/verify' || route === '/api/cancel') && req.method === 'POST') {
       const body = await readBody(req);
       await serialize(async () => {
         expect(!finished, '本次配置会话已结束', 'SESSION_FINISHED');
+        if (route === '/api/verify') {
+          expect(verify, '此向导未配置连接验证', 'INVALID_REQUEST');
+          const { secrets, verification } = await validateAndVerify(body);
+          for (const key of Object.keys(secrets)) delete secrets[key];
+          json(res, 200, verification); return;
+        }
         let result;
         if (route === '/api/save') {
-          const { values, secrets } = validateSubmission(spec, body, snapshot.savedSecrets);
+          const { values, secrets, verification } = await validateAndVerify(body);
           try {
             const warnings = await saveTarget(spec, target, snapshot.hash, values, secrets);
-            result = makeResult('completed', undefined, warnings);
+            result = makeResult('completed', undefined, warnings, verification.message);
           } finally { for (const key of Object.keys(secrets)) delete secrets[key]; }
         } else {
           expect(body && typeof body === 'object' && !Array.isArray(body) && Object.keys(body).length === 0, '取消请求应为空对象', 'INVALID_REQUEST');

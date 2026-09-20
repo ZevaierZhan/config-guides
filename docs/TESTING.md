@@ -27,7 +27,7 @@ HTTP API 本身已另外通过原生 Node fetch 测试；这不等于验证了�
 - Windows/macOS 实机运行和 Windows ACL 测试；CI 文件只是已提供，并未远端运行。
 - 完整 OpenCLI plugin install/发现/转译/执行链路；示例仅按当前官方接口编写。
 - npm/GitHub Packages 登录及实际发布；只有本地 tarball，不代表 registry 上已存在这个版本。
-- Jira 真实服务器连接/认证；SDK 本身当前不提供该验证能力。
+- Jira 等真实服务器由宿主插件提供 `verify` Adapter；SDK 测试覆盖候选配置、超时、失败不落盘及成功后保存。
 - 恶意同用户进程对抗、断电恢复和第三方安全审计。
 
 当前环境无法解析外部 registry/GitHub 域名，因此没有安装完整 OpenCLI 来运行端到端测试。

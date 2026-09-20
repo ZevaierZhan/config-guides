@@ -1,6 +1,6 @@
-# 配置引导协议 1.0：JS 0.1.0 支持的子集
+# 配置引导协议 1.0：JS 0.2.0 支持的子集
 
-包版本 0.1.0 与描述文件 protocolVersion 1.0 是不同的版本维度。
+包版本 0.2.0 与描述文件 protocolVersion 1.0 是不同的版本维度。
 `defineGuide` 是严格校验器，但不是通用 JSON Schema 引擎。
 
 ## 描述结构
@@ -19,7 +19,7 @@ URL 校验为 HTTP(S)，邮箱为基础格式检查，不做可投递验证。�
 
 `form.secrets`：label、required、description。不能有 default，已有值不回填前端。
 `targets`：仅一个 file/json/update-owned/user-only 目标。声明秘密时
-必须 `allowPlaintextSecrets:true`。没有连接验证、加密或钥匙串语义。
+必须 `allowPlaintextSecrets:true`。描述 JSON 没有任意命令、连接验证、加密或钥匙串语义；连接验证只能由可信宿主通过 JS `verify` Adapter 提供。
 `bindings`：每个字段有且仅有一个映射，目标之间不能相等或存在父子关系。
 `submit`：label + apply.kind:write-targets。
 `requires`：可声明 file.json、ui.secret；其他能力直接拒绝。
@@ -76,7 +76,7 @@ close 幂等；若调用时保存已经提交，以保存结果为准，不会�
 即便用户恰好断开网页，已经成功的保存也会结束服务。
 
 状态：completed + saved；或者 cancelled + unchanged（reason 区分取消/超时/中断）。
-读取或保存文件不会自动验证外部服务；verification = not-requested。
+未提供 `verify` 时读取和保存不会连接外部服务；提供时，测试按钮验证候选配置但不保存，保存请求会重新验证并仅在成功后写入。
 
 ## 主要错误码
 
