@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>配置引导工具</title><link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><span class="brand"><span class="brand-mark">⌘</span> 配置引导工具</span><span class="local"><span></span> 本机会话</span></header>
+  <main>
+    <section class="intro"><div class="eyebrow">CONFIG GUIDE</div><h1 id="title">正在读取配置</h1><p id="subtitle">一次填写，供插件后续自动读取。</p></section>
+    <section class="card" id="editor"><div class="section-heading"><h2>基本设置</h2><span>配置保存在当前设备</span></div><form id="form"><div id="fields"></div><div class="notice hidden" id="secret-notice">凭据将以明文写入 JSON，并限制文件访问权限。密码框只遮挡显示，不提供加密；同用户程序及系统管理员仍可能访问。</div><details id="storage"><summary>查看保存位置与写入规则</summary><code id="target"></code><p>只更新本向导管理的字段，保留其他字段。不会修改这个描述 JSON 文件。</p></details><div role="alert" class="error hidden" id="error"></div><div class="actions"><button type="button" class="secondary" id="cancel">取消</button><button type="submit" class="primary" id="save">保存配置</button></div></form></section>
+    <section id="result" class="card result hidden" aria-live="polite"><div class="success-mark" id="result-icon">✓</div><h2 id="result-title"></h2><p id="result-text"></p><code id="result-path"></code><p class="muted" id="close-status">本地服务已结束，现在可以关闭此页面。</p></section>
+    <footer>本地表单 · 不使用外部页面资源 · 关闭标签页不会自动保存</footer>
+  </main>
+</body>
+</html>

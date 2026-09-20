@@ -1,0 +1,4 @@
+# Optional project/user .npmrc for installing from GitHub Packages.
+# Do NOT copy this for npmjs.org installs. Never commit a real token.
+@zevaier:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}

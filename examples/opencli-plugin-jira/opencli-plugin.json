@@ -1,0 +1,6 @@
+{
+  "name": "jira-config-example",
+  "version": "0.1.0",
+  "opencli": ">=1.0.0",
+  "description": "Jira 配置示例：setup 打开本地表单，config-status 读取相同位置（不返回 Token）"
+}

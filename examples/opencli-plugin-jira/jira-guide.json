@@ -1,0 +1,40 @@
+{
+  "protocolVersion": "1.0",
+  "plugin": { "id": "zevaier/jira", "title": "配置 Jira" },
+  "form": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "baseUrl": { "type": "string", "title": "Jira 服务地址", "description": "例如企业 Jira 的 HTTPS 地址。", "minLength": 1 },
+        "username": { "type": "string", "title": "用户名 / 邮箱", "minLength": 1 },
+        "authMode": { "type": "string", "title": "插件使用的认证方式", "enum": ["basic-token", "bearer-token"], "default": "basic-token", "description": "应与业务插件实际实现一致；向导本身不发起 Jira 登录请求。" },
+        "project": { "type": "string", "title": "默认项目", "description": "可选，例如 DEMO。" }
+      },
+      "required": ["baseUrl", "username", "authMode"],
+      "additionalProperties": false
+    },
+    "secrets": { "token": { "label": "访问令牌", "required": true, "description": "示例以明文 JSON 保存，不接入系统钥匙串；先使用测试凭据。" } },
+    "ui": [
+      { "kind": "field", "path": "/baseUrl", "widget": "url" },
+      { "kind": "field", "path": "/username", "widget": "text" },
+      { "kind": "field", "path": "/authMode", "widget": "select" },
+      { "kind": "secret", "key": "token" },
+      { "kind": "field", "path": "/project", "widget": "text" }
+    ]
+  },
+  "targets": {
+    "config": {
+      "kind": "file", "format": "json", "writeMode": "update-owned", "access": "user-only",
+      "path": { "base": "userHome", "relative": ".opencli/config/jira.json" },
+      "allowPlaintextSecrets": true
+    }
+  },
+  "bindings": [
+    { "from": "/values/baseUrl", "target": "config", "to": "/connection/baseUrl" },
+    { "from": "/values/username", "target": "config", "to": "/auth/username" },
+    { "from": "/values/authMode", "target": "config", "to": "/auth/mode" },
+    { "from": "/secrets/token", "target": "config", "to": "/auth/token" },
+    { "from": "/values/project", "target": "config", "to": "/defaults/project" }
+  ],
+  "submit": { "label": "保存 Jira 配置", "apply": { "kind": "write-targets" } }
+}

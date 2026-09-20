@@ -1,0 +1,55 @@
+{
+  "name": "@zevaier/config-guides",
+  "version": "0.1.0",
+  "description": "Local browser-based configuration guides for OpenCLI plugins and Node.js tools",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "config-guide": "./bin/config-guide.js"
+  },
+  "files": [
+    "src/",
+    "web/",
+    "bin/",
+    "types/",
+    "examples/",
+    "docs/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "demo": "node bin/config-guide.js --spec examples/hello-world.json",
+    "pack:check": "npm pack --dry-run",
+    "publish:npm": "npm publish --registry=https://registry.npmjs.org/ --@zevaier:registry=https://registry.npmjs.org/ --access=public",
+    "publish:github": "npm publish --registry=https://npm.pkg.github.com/ --@zevaier:registry=https://npm.pkg.github.com/",
+    "prepublishOnly": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZevaierZhan/config-guides.git"
+  },
+  "keywords": [
+    "opencli",
+    "config",
+    "setup",
+    "wizard",
+    "local",
+    "form"
+  ],
+  "author": "zevaier",
+  "license": "MIT"
+}

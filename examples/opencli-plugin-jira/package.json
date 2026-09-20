@@ -1,0 +1,9 @@
+{
+  "name": "opencli-plugin-jira-config-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "dependencies": { "@zevaier/config-guides": "0.1.0" },
+  "peerDependencies": { "@jackwener/opencli": ">=1.0.0" }
+}

@@ -1,0 +1,7 @@
+node_modules/
+*.tgz
+.npmrc
+.DS_Store
+coverage/
+test-results/
+*.config-guide.lock

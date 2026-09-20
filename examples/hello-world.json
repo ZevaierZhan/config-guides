@@ -1,0 +1,56 @@
+{
+  "protocolVersion": "1.0",
+  "plugin": {
+    "id": "demo/hello-world",
+    "title": "Hello World 配置"
+  },
+  "form": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "你的名字",
+          "description": "测试字段：保存后会写入 profile.name。",
+          "default": "World",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "message": {
+          "type": "string",
+          "title": "问候语",
+          "description": "可以修改为任意一句话。",
+          "default": "Hello, World!",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": ["name", "message"],
+      "additionalProperties": false
+    },
+    "ui": [
+      { "kind": "field", "path": "/name", "widget": "text" },
+      { "kind": "field", "path": "/message", "widget": "textarea" }
+    ]
+  },
+  "targets": {
+    "config": {
+      "kind": "file",
+      "path": {
+        "base": "userHome",
+        "relative": ".config/config-guide-demo/hello.json"
+      },
+      "format": "json",
+      "writeMode": "update-owned",
+      "access": "user-only"
+    }
+  },
+  "bindings": [
+    { "from": "/values/name", "target": "config", "to": "/profile/name" },
+    { "from": "/values/message", "target": "config", "to": "/message" }
+  ],
+  "submit": {
+    "label": "保存配置",
+    "apply": { "kind": "write-targets" }
+  }
+}
