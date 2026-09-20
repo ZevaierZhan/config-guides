@@ -8,7 +8,7 @@
 把 `package.json` 的 dependencies 中加入：
 
 ```json
-"@zevaier/config-guides": "0.1.0"
+"@zevaier/config-guides": "https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.1/zevaier-config-guides-0.3.1.tgz"
 ```
 
 把 `jira-setup.ts`、`jira-guide.json` 放进你的插件，然后让 OpenCLI 安装该插件。
@@ -33,7 +33,7 @@ opencli jira config-status
 ## 发布前测试
 
 先在隔离的临时插件目录安装本地 `.tgz`，再安装到你自己的 OpenCLI 开发环境。
-本地 `.tgz` 安装会把 dependency 改成 `file:...`，测试结束后改回版本 `0.1.0`。
+本地 `.tgz` 安装会把 dependency 改成 `file:...`，测试结束后改回上面的 GitHub Release URL。
 宿主完整安装需要网络；本交付环境未运行完整的 OpenCLI plugin install。
 
 ## 配置存放位置

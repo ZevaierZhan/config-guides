@@ -67,7 +67,7 @@ export class ConfigGuideError extends Error {
   readonly fields?: Record<string, string>;
   constructor(code: string, message: string, options?: { cause?: unknown; fields?: Record<string, string> });
 }
-export const version: '0.3.0';
+export const version: '0.3.1';
 export const capabilities: readonly string[];
 /** Validates immediately, returns an independent normalized copy. */
 export function defineGuide(spec: GuideSpec): GuideSpec;

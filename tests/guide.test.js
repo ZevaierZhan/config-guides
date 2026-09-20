@@ -69,7 +69,7 @@ function withAuthVariant(spec) {
 test('package exports and no host signal side effects', async () => {
   const before = process.listenerCount('SIGINT');
   const lib = await import('../src/index.js');
-  assert.equal(lib.version, '0.3.0'); assert.equal(version, '0.3.0');
+  assert.equal(lib.version, '0.3.1'); assert.equal(version, '0.3.1');
   assert.equal(process.listenerCount('SIGINT'), before);
 });
 test('original hello spec accepted without mutation', () => {
@@ -365,6 +365,15 @@ test('CLI --version works and timeout returns code 2 with parseable stdout', asy
   let out = '', err = ''; child.stdout.on('data', b => { out += b; }); child.stderr.on('data', b => { err += b; });
   const code = await new Promise((resolve, reject) => { child.once('exit', resolve); child.once('error', reject); });
   assert.equal(code, 2); assert.equal(JSON.parse(out).reason, 'timeout'); assert.match(err, /127\.0\.0\.1/);
+});
+test('CLI --agent opens no model-visible bearer URL', async t => {
+  const f = await fixture(t); const file = path.join(f.dir, 'guide.json'); await writeFile(file, JSON.stringify(f.spec));
+  const bin = fileURLToPath(new URL('../bin/config-guide.js', import.meta.url));
+  const child = spawn(process.execPath, [bin, '--agent', '--no-open', '--spec', file, '--workspace-dir', f.dir, '--timeout', '100ms']);
+  let out = '', err = ''; child.stdout.on('data', b => { out += b; }); child.stderr.on('data', b => { err += b; });
+  const code = await new Promise((resolve, reject) => { child.once('exit', resolve); child.once('error', reject); });
+  assert.equal(code, 2); assert.equal(JSON.parse(out).reason, 'timeout');
+  assert.equal(/https?:\/\/127\.0\.0\.1|session=/u.test(err), false);
 });
 
 test('guide source file itself cannot be selected as output', async t => {

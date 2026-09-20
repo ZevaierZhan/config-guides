@@ -6,15 +6,17 @@ import { runGuide, version } from '../src/index.js';
 async function main() {
   const { values, positionals } = parseArgs({ options: {
     spec: { type: 'string' }, context: { type: 'string' }, 'plugin-dir': { type: 'string' },
-    'workspace-dir': { type: 'string' }, 'no-open': { type: 'boolean' },
+    'workspace-dir': { type: 'string' }, 'no-open': { type: 'boolean' }, agent: { type: 'boolean' },
     timeout: { type: 'string', default: '15m' }, version: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
   }, allowPositionals: true });
   if (values.version) { console.log(version); return; }
   if (values.help) {
     console.log(`@zevaier/config-guides ${version}
 用法: config-guide --spec hello-world.json [--no-open] [--timeout 15m]
+      config-guide --agent --spec generated-guide.json --timeout 30m
       config-guide --spec jira-guide.json --workspace-dir C:\\project
 选项: --context 文件  --plugin-dir 目录  --workspace-dir 目录
+--agent 自动打开浏览器但不输出含会话凭证的 URL，供本机智能体代用户启动。
 需要 Node.js >=22；不需要 Go、原生程序或浏览器扩展。
 stdout: 最终结果 JSON；stderr: 本地地址/提示。
 退出码: 0 保存完成，2 取消/超时，1 启动失败。`); return;
@@ -32,7 +34,13 @@ stdout: 最终结果 JSON；stderr: 本地地址/提示。
   const abort = () => controller.abort();
   process.once('SIGINT', abort); process.once('SIGTERM', abort);
   try {
-    const result = await runGuide({ specFile, context, timeoutMs, openBrowser: !values['no-open'], signal: controller.signal });
+    const result = await runGuide({
+      specFile, context, timeoutMs, openBrowser: !values['no-open'], signal: controller.signal,
+      ...(values.agent ? {
+        onReady: () => {},
+        onWarning: () => process.stderr.write('配置引导工具：未能自动打开浏览器；请让 owner 在交互终端中不带 --agent 重新运行。\n'),
+      } : {}),
+    });
     console.log(JSON.stringify(result));
     process.exitCode = result.status === 'completed' ? 0 : 2;
   } finally { process.off('SIGINT', abort); process.off('SIGTERM', abort); }

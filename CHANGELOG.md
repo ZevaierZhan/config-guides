@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- Add a self-contained Codex skill for one-time local guides and durable OpenCLI setup implementations.
+- Add `config-guide --agent` to open the browser without printing the bearer session URL into agent output.
+- Document one-sentence README entry prompts and ship skills in the package artifact.
+
 ## 0.3.0
 
 - Add discriminated `ui.variant` branches with dynamic required fields and server-enforced deletion of inactive values and secrets.

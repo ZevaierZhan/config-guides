@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
-  "dependencies": { "@zevaier/config-guides": "0.3.0" },
+  "dependencies": { "@zevaier/config-guides": "https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.1/zevaier-config-guides-0.3.1.tgz" },
   "peerDependencies": { "@jackwener/opencli": ">=1.0.0" }
 }

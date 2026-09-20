@@ -1,27 +1,43 @@
-# @zevaier/config-guides · 0.3.0
+# @zevaier/config-guides · 0.3.1
 
 **配置引导工具的 JavaScript 版。** 在 OpenCLI 插件的 `setup` 中直接 import，
 启动回环地址随机端口网页，填写配置，保存后返回结构化结果。
 
 真正使用 Node.js 的 HTTP/文件系统能力，不是包装 Go 可执行文件。
-零第三方运行时依赖，无 install/postinstall 脚本，无前端构建步骤；含 TypeScript 声明。
+只有用于富文本白名单清洗的 JavaScript 运行时依赖，无 install/postinstall 脚本，无前端构建步骤；含 TypeScript 声明。
 使用 Node.js >=22。OpenCLI 插件可以复用**运行该插件的 Node.js 环境**；
 这不表示任意封装版客户端都向插件提供兼容的 Node API，请核对宿主版本。
 
-当前交付是源码和 `npm pack` 产物，**尚未由本次开发会话发布到 npm 或 GitHub Packages**。
+当前通过公开 GitHub Release 提供可校验的 `npm pack` 产物；尚未发布到 npm registry。
+
+## 用 Codex 一句话完成
+
+无需预先安装 Skill。下面两句话都会让 Codex 先读取本仓库的标准 Skill，再选择对应流程：
+
+```text
+根据 https://github.com/ZevaierZhan/config-guides/blob/main/README.md 为 <目标工具> 生成一次性配置指引，我来完成配置。
+```
+
+```text
+根据 https://github.com/ZevaierZhan/config-guides/blob/main/README.md 实现 opencli <xxx> setup 功能。
+```
+
+给智能体的入口：先读取 [`SKILLS.md`](SKILLS.md)，再完整读取 [`skills/config-guides/SKILL.md`](skills/config-guides/SKILL.md) 及其中为当前场景指定的 reference。Skill 自身包含一次性运行和 OpenCLI setup 开发两种流程、协议字段、安全要求、示例与验收条件，不依赖 README 作为前置信息。
+
+也可以让 Codex 把 `skills/config-guides` 从此 GitHub 仓库安装为个人 Skill，之后直接说“生成配置指引”或“实现 opencli xxx setup”。
 
 ## 1. 安装
 
-发布到 npm 后：
+当前推荐安装公开 GitHub Release：
 
 ```sh
-npm install --save-exact @zevaier/config-guides@0.3.0
+npm install --save-exact https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.1/zevaier-config-guides-0.3.1.tgz
 ```
 
-发布前可安装交付的本地 tarball：
+下载产物后也可本地安装：
 
 ```sh
-npm install ./zevaier-config-guides-0.3.0.tgz
+npm install ./zevaier-config-guides-0.3.1.tgz
 ```
 
 插件 `package.json` 中的依赖最终应为：
@@ -30,7 +46,7 @@ npm install ./zevaier-config-guides-0.3.0.tgz
 {
   "type": "module",
   "dependencies": {
-    "@zevaier/config-guides": "0.3.0"
+    "@zevaier/config-guides": "https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.1/zevaier-config-guides-0.3.1.tgz"
   }
 }
 ```
@@ -98,7 +114,7 @@ node bin/config-guide.js --spec examples/hello-world.json --no-open
 
 完整示例位于 `examples/opencli-plugin-jira/`，包含：
 
-- `package.json`：依赖 `"@zevaier/config-guides": "0.3.0"`。
+- `package.json`：依赖 0.3.1 GitHub Release tarball。
 - `jira-setup.ts`：注册 `opencli jira setup`。
 - `jira-guide.json`：文本、下拉框、密码及文件字段映射。
 - `jira-config-status.ts`：共用路径解析读取配置，但不返回 Token。
@@ -207,7 +223,7 @@ const result = await session.done;
 一个 JSON 文件目标、嵌套对象 JSON Pointer、已有配置回填和只更新绑定字段。
 
 本版不实现：OAuth/授权跳转、hooks/任意命令、系统钥匙串、多保存目标、YAML/TOML/dotenv、
-复杂条件 UI、完整 JSON Schema 标准。声明未支持字段会报错，不会默默忽略。
+任意嵌套条件 UI、完整 JSON Schema 标准。声明未支持字段会报错，不会默默忽略。
 详见 `docs/PROTOCOL.md`。
 
 ## 8. 权限和平台边界
@@ -248,6 +264,8 @@ types/index.d.ts      TypeScript 声明
 examples/             Hello World 和 OpenCLI Jira 示例
 tests/                Node 原生测试
 docs/                 协议、发布、安全和验证说明
+skills/               可独立安装的 Codex Skill 及场景参考
+SKILLS.md             仓库内 Skill 路由入口
 .github/workflows/    跨平台 CI；手动 GitHub Packages 发布
 ```
 

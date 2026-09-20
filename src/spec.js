@@ -5,7 +5,7 @@ import { ConfigGuideError, expect } from './errors.js';
 import { cloneJSON, isObject, keys, object, own, parseJSON, readLimited, text } from './json.js';
 import { overlaps, pointer, safeKey } from './pointers.js';
 
-export const version = '0.3.0';
+export const version = '0.3.1';
 export const capabilities = Object.freeze(['file.json', 'ui.secret', 'ui.variant', 'ui.sanitized-html']);
 const fieldKeys = ['type', 'title', 'description', 'default', 'enum', 'minLength', 'maxLength', 'minimum', 'maximum'];
 const controlHelpKeys = ['format', 'content'];
@@ -164,7 +164,7 @@ export function defineGuide(input) {
   }
   expect(fields.size === Object.keys(schema.properties).length && secrets.size === Object.keys(spec.form.secrets).length, '每个字段需要恰好一个 UI 控件');
   object(spec.targets, 'targets');
-  expect(Object.keys(spec.targets).length === 1, '0.3.0 仅支持一个保存目标');
+  expect(Object.keys(spec.targets).length === 1, '0.3.1 仅支持一个保存目标');
   const [targetId, target] = Object.entries(spec.targets)[0]; safeKey(targetId);
   keys(target, ['kind', 'path', 'format', 'writeMode', 'access', 'allowPlaintextSecrets'], 'target');
   expect(target.kind === 'file' && target.format === 'json' && target.writeMode === 'update-owned' && target.access === 'user-only', '仅支持 file / json / update-owned / user-only');
