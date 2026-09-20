@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, mkdir, rm, stat, symlink, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, mkdir, rm, stat, symlink, readdir, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
@@ -12,7 +12,7 @@ import { pointer, setAt, getAt } from '../src/pointers.js';
 
 const hello = JSON.parse(await readFile(new URL('../examples/hello-world.json', import.meta.url), 'utf8'));
 async function fixture(t, edit = () => {}) {
-  const dir = await mkdtemp(path.join(tmpdir(), 'config-guides-test-'));
+  const dir = await realpath(await mkdtemp(path.join(tmpdir(), 'config-guides-test-')));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const spec = structuredClone(hello);
   spec.targets.config.path = { base: 'workspaceDir', relative: 'data/settings.json' };
