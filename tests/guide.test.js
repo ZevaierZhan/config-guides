@@ -236,7 +236,8 @@ test('unknown submission fields, types and secret operations rejected', async t 
 test('HTTP assets and security headers, bearer token and origin protection', async t => {
   const f = await fixture(t); const s = await start(t, f.options); const url = new URL(s.url);
   const page = await fetch(url.origin); assert.equal(page.status, 200); assert.match(page.headers.get('content-security-policy'), /frame-ancestors 'none'/);
-  assert.match(await page.text(), /配置引导工具/);
+  const html = await page.text(); assert.match(html, /配置引导工具/); assert.match(html, /data:image\/webp;base64,/);
+  assert.equal(/(?:src|href)=["']https?:\/\//.test(html), false);
   assert.equal((await fetch(`${url.origin}/api/session`)).status, 401);
   assert.equal((await api(s, '/api/session', undefined, { Origin: 'https://evil.example' })).status, 403);
   assert.equal((await api(s, '/api/save', input(), { Origin: 'https://evil.example' })).status, 403);
