@@ -55,7 +55,7 @@ Validate JSON syntax and protocol consistency before launch. Use a workspace fil
 Check `node --version` first. Then run in the foreground from a terminal tool and allow the process to remain active:
 
 ```sh
-npx --yes --package=https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.1/zevaier-config-guides-0.3.1.tgz config-guide --agent --spec /absolute/path/example-config-guide.json --timeout 30m
+npx --yes --package=https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.2/zevaier-config-guides-0.3.2.tgz config-guide --agent --spec /absolute/path/example-config-guide.json --timeout 30m
 ```
 
 On Windows, quote an absolute path containing spaces. `--agent` opens the system browser and suppresses the bearer URL. Do not add `--no-open`. Tell the owner that the form is ready, then wait for the process.
@@ -67,4 +67,3 @@ Exit meanings:
 - `1`: startup/description failure; fix non-secret errors and retry. If browser launch failed, ask the owner to run the same command interactively without `--agent` so only their terminal receives the URL.
 
 The one-time CLI does not perform a remote connection check because JSON cannot contain executable adapters. If verification is required, use a small trusted JS host with `runGuide({ verify })` or implement the durable OpenCLI setup workflow.
-

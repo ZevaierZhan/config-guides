@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Replace the local setup page with a responsive anime-inspired visual theme.
+- Keep all illustration assets embedded as Data URIs, with no external page requests.
+- Distribute the package through a versioned public GitHub Release tarball; npm publication remains manual and paused.
+
 ## 0.3.1
 
 - Add a self-contained Codex skill for one-time local guides and durable OpenCLI setup implementations.

@@ -1,4 +1,4 @@
-# @zevaier/config-guides · 0.3.1
+# @zevaier/config-guides · 0.3.2
 
 **配置引导工具的 JavaScript 版。** 在 OpenCLI 插件的 `setup` 中直接 import，
 启动回环地址随机端口网页，填写配置，保存后返回结构化结果。
@@ -8,8 +8,7 @@
 使用 Node.js >=22。OpenCLI 插件可以复用**运行该插件的 Node.js 环境**；
 这不表示任意封装版客户端都向插件提供兼容的 Node API，请核对宿主版本。
 
-npm registry 是首选分发目标，公开 GitHub Release 是可校验的兜底。npm 首次发布完成前，
-请使用 GitHub Release 产物。
+当前通过公开 GitHub Release 分发带校验摘要的 npm tarball；暂不发布到 npm registry。
 
 ## 用 Codex 一句话完成
 
@@ -29,28 +28,22 @@ npm registry 是首选分发目标，公开 GitHub Release 是可校验的兜底
 
 ## 1. 安装
 
-npm registry 发布完成后，推荐固定版本安装：
+推荐固定 GitHub Release 版本安装：
 
 ```sh
-npm install --save-exact @zevaier/config-guides@0.3.1
+npm install --save-exact https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.2/zevaier-config-guides-0.3.2.tgz
 ```
 
 让智能体一次性启动配置引导时，也可直接用 `npx`，无需先全局安装：
 
 ```sh
-npx --yes --package=@zevaier/config-guides@0.3.1 config-guide --agent --spec ./guide.json --timeout 30m
-```
-
-npm 首次发布完成前，或需要校验 GitHub Release 产物时：
-
-```sh
-npm install --save-exact https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.1/zevaier-config-guides-0.3.1.tgz
+npx --yes --package=https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.2/zevaier-config-guides-0.3.2.tgz config-guide --agent --spec ./guide.json --timeout 30m
 ```
 
 下载产物后也可本地安装：
 
 ```sh
-npm install ./zevaier-config-guides-0.3.1.tgz
+npm install ./zevaier-config-guides-0.3.2.tgz
 ```
 
 插件 `package.json` 中的依赖最终应为：
@@ -59,7 +52,7 @@ npm install ./zevaier-config-guides-0.3.1.tgz
 {
   "type": "module",
   "dependencies": {
-    "@zevaier/config-guides": "0.3.1"
+    "@zevaier/config-guides": "https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.2/zevaier-config-guides-0.3.2.tgz"
   }
 }
 ```
@@ -127,7 +120,7 @@ node bin/config-guide.js --spec examples/hello-world.json --no-open
 
 完整示例位于 `examples/opencli-plugin-jira/`，包含：
 
-- `package.json`：依赖 0.3.1 GitHub Release tarball。
+- `package.json`：依赖 0.3.2 GitHub Release tarball。
 - `jira-setup.ts`：注册 `opencli jira setup`。
 - `jira-guide.json`：文本、下拉框、密码及文件字段映射。
 - `jira-config-status.ts`：共用路径解析读取配置，但不返回 Token。
@@ -265,8 +258,8 @@ npm pack
 `https://github.com/ZevaierZhan/config-guides.git`。
 包使用 MIT License；发布前确认这符合你的授权选择。
 
-npm / GitHub Packages 的完整命令和认证差异在 `docs/PUBLISHING.md`。npm 发布工作流只接受
-与 `package.json` 版本一致的 `vX.Y.Z` tag；GitHub Release 发布时自动执行，也可手动选择已有 tag 执行。
+npm / GitHub Packages 的完整命令和认证差异在 `docs/PUBLISHING.md`。npm 发布工作流当前暂停自动触发，
+仅能手动选择与 `package.json` 版本一致的 `vX.Y.Z` tag 执行。
 
 ## 10. 目录
 

@@ -7,7 +7,7 @@ Use this workflow when adding `opencli <site> setup` to a plugin.
 Until the package is published to npm, install the exact public release:
 
 ```sh
-npm install --save-exact https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.1/zevaier-config-guides-0.3.1.tgz
+npm install --save-exact https://github.com/ZevaierZhan/config-guides/releases/download/v0.3.2/zevaier-config-guides-0.3.2.tgz
 ```
 
 Commit the package manifest and lockfile according to the repository's package-manager convention. Place `config-guide.json` beside the command module. Ensure plugin packaging includes JSON and generated JavaScript files.
@@ -98,4 +98,3 @@ Cover behavior through the public seams:
 - `opencli <site> setup --help` discovers one command with no secret arguments.
 
 Run the repository's build, typecheck, and test commands. If generated JavaScript is committed, rebuild it. Bump all plugin and monorepo manifest versions consistently. Commit/push only when requested or already part of the task.
-

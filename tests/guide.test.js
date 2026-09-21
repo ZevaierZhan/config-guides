@@ -69,7 +69,7 @@ function withAuthVariant(spec) {
 test('package exports and no host signal side effects', async () => {
   const before = process.listenerCount('SIGINT');
   const lib = await import('../src/index.js');
-  assert.equal(lib.version, '0.3.1'); assert.equal(version, '0.3.1');
+  assert.equal(lib.version, '0.3.2'); assert.equal(version, '0.3.2');
   assert.equal(process.listenerCount('SIGINT'), before);
 });
 test('original hello spec accepted without mutation', () => {

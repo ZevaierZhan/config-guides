@@ -17,7 +17,7 @@ This skill is self-contained. README is an entry point for humans, not a prerequ
 Before either workflow, read [references/protocol.md](references/protocol.md). It defines every supported description field and the security invariants.
 
 - Require Node.js 22 or newer.
-- Current distributable: `@zevaier/config-guides` 0.3.1 from the GitHub Release tarball named `zevaier-config-guides-0.3.1.tgz`.
+- Current distributable: `@zevaier/config-guides` 0.3.2 from the GitHub Release tarball named `zevaier-config-guides-0.3.2.tgz`.
 - Put ordinary values in `form.schema.properties`; put credentials in `form.secrets`. Never ask the owner to paste a secret into chat, command arguments, source, or an agent-readable trace.
 - Use a stable user-owned JSON path. Each declared field has exactly one UI control and one binding.
 - Use `kind: "variant"` for mutually exclusive choices such as Basic/PAT/Bearer or local/WebDAV. Non-active branch values and secrets are deleted on save.

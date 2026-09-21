@@ -28,7 +28,7 @@ try {
     });
     assert.equal(response.status, 200);
   } });
-  assert.equal(result.persistence, 'saved'); assert.equal(version, '0.3.1');
+  assert.equal(result.persistence, 'saved'); assert.equal(version, '0.3.2');
   assert.deepEqual(await readConfig(source), { profile: { name: 'Hello from installed npm package' } });
   console.log('PASS: installed .tgz -> ESM import -> shipped UI -> runGuide -> file save -> clean return');
 } finally { await rm(dir, { recursive: true, force: true }); }

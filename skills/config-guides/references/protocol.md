@@ -1,4 +1,4 @@
-# Config guide protocol 1.0 — package 0.3.1
+# Config guide protocol 1.0 — package 0.3.2
 
 Use this reference when authoring or reviewing a guide description. `defineGuide` strictly rejects unknown or unsupported fields; this is a deliberate subset, not full JSON Schema.
 
@@ -152,4 +152,3 @@ verify: async ({ config, signal }) => {
 The test button verifies without writing. Save verifies the same submitted candidate again and writes only after success. The message and thrown errors must not contain credentials, authorization headers, or full sensitive responses.
 
 Files are updated through revision checking, a cooperative lock, a same-directory private temporary file, fsync, and rename. The short-lived loopback URL contains a bearer credential and must not enter agent output, telemetry, chat, or public logs.
-

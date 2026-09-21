@@ -1,6 +1,6 @@
 {
   "name": "@zevaier/config-guides",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Local browser-based configuration guides for OpenCLI plugins and Node.js tools",
   "type": "module",
   "main": "./src/index.js",
